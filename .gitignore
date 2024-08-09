@@ -2,3 +2,5 @@
 *.pt
 *.log
 logs/
+__pycache__
+data

@@ -82,7 +82,7 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 2*width, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 4*width, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 8*width, num_blocks[3], stride=2)
-        self.linear = nn.Linear(512*block.expansion, num_classes)
+        self.linear = nn.Linear(8*width*block.expansion, num_classes)
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -123,10 +123,3 @@ def ResNet101():
 def ResNet152():
     return ResNet(Bottleneck, [3, 8, 36, 3])
 
-
-def test():
-    net = ResNet18()
-    y = net(torch.randn(1, 3, 32, 32))
-    print(y.size())
-
-# test()

@@ -6,15 +6,17 @@ def log_reader(log_lines, start=0):
     delta = 6
 
     logs = log_lines[start::delta]
-    return [float(log[-5:]) for log in logs]
+    logs = [float(log[-5:]) for log in logs]
+
+    logs = np.array(logs).reshape(-1, 100)
+    return logs.mean(axis=0)
 
 
 if __name__=='__main__':
 
     resnet_widths = [1] + [num for num in range(2, 23) if num % 2 == 0] + [num for num in range(24, 65) if num % 4 == 0]
 
-    epochs = range(18, 23, 2)
-    epochs = range(45, 49, 2)
+    epochs = range(80, 95, 2)
 
 
     plt.figure(figsize=(15, 5))
@@ -27,7 +29,7 @@ if __name__=='__main__':
             dd_test = []
 
             for k in resnet_widths:
-                with open(f'logs2/resnet18_noise={noise}_k={k}.log', 'r') as f:
+                with open(f'logs_orig_res/resnet18_k={k}_noise={noise}.log', 'r') as f:
                     lines = f.readlines()
 
                     test_accuracy1 = log_reader(lines, start=3)

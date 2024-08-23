@@ -2,19 +2,22 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-# from resnet import ResNet18
-from torchvision.models import resnet18, resnet34, resnet50, resnet101, resnet152
 import numpy as np
 import random
 from data import create_dataset
 import logging
 from tqdm import tqdm
 import itertools
+from resnet import make_resnet18k
+from torchvision.models import resnet18
 
 
 
-def ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion, optimizer1, optimizer2, scheduler1, scheduler2, logger, epochs=50):
+
+
+def ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion1, criterion2, optimizer1, optimizer2, logger, epochs=100):
     for epoch in range(epochs):
+        total_loss1, total_loss2, total = 0, 0, 0
         
         # TRAIN
         net1.train()
@@ -25,18 +28,22 @@ def ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion, optimi
 
             optimizer1.zero_grad()
             outputs1 = net1(inputs)
-            loss1 = criterion(outputs1, labels)
+            loss1 = criterion1(outputs1, labels)
             loss1.backward()
             optimizer1.step()
+            total_loss1 += loss1.item()
 
             optimizer2.zero_grad()
             outputs2 = net2(inputs)
-            loss2 = criterion(outputs2, labels)
+            loss2 = criterion2(outputs2, labels)
             loss2.backward()
             optimizer2.step()
+            total_loss2 += loss2.item()
 
-        scheduler1.step()
-        scheduler2.step()
+            total += 1
+        
+        logger.info(f'Epoch {epoch} | Net1 Total Loss: {total_loss1 / total:.3f}')
+        logger.info(f'Epoch {epoch} | Net2 Total Loss: {total_loss2 / total:.3f}')
 
         # EVAL
         net1.eval()
@@ -60,8 +67,7 @@ def ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion, optimi
                     correct1 += preds1.eq(labels).sum().item()
                     correct2 += preds2.eq(labels).sum().item()
 
-                    discrepancy = (preds1 != preds2).sum().item()
-                    total_discrepancy += discrepancy
+                    total_discrepancy += (preds1 == preds2).sum().item()
 
             accuracy1 = correct1 / total
             accuracy2 = correct2 / total
@@ -78,13 +84,19 @@ def ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion, optimi
 
 if __name__=='__main__':
 
-    noise_ratios = [0, 0.2, 0.5]
-    # resnet_widths = [1] + [num for num in range(2, 23) if num % 2 == 0] + [num for num in range(24, 65) if num % 4 == 0]
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f'Device: {device}')
 
-    # for resnet_width, noise_ratio  in itertools.product(resnet_widths, noise_ratios):
-    resnet_width = 64
-    for idx in range(10):
-        for noise_ratio  in noise_ratios:
+    repeats = 5
+    noise_ratios = [0, 0.15, 0.4]# [0, 0.2, 0.5]
+    resnet_widths = [1] + [num for num in range(2, 23) if num % 2 == 0] + [num for num in range(24, 65) if num % 4 == 0]
+
+    resnet_widths = [8, 16, 32, 64]
+
+    for idx in range(repeats):
+        for resnet_width, noise_ratio  in itertools.product(resnet_widths, noise_ratios):
+        
+            # for noise_ratio  in noise_ratios:
 
             print(f'Noise Ratio: {noise_ratio}, ResNet Width: {resnet_width}')
 
@@ -94,40 +106,29 @@ if __name__=='__main__':
             if logger.hasHandlers():
                 logger.handlers.clear()
 
-            file_handler = logging.FileHandler(f'logs_original_subset02/resnet18_noise={noise_ratio}_k={resnet_width}.log')
+            file_handler = logging.FileHandler(f'logs8/resnet18_k={resnet_width}_noise={noise_ratio}.log')
             file_handler.setLevel(logging.INFO)
 
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
 
-            trainset, testset = create_dataset(corruption_percentage=noise_ratio)
+            trainloader, trainloader_eval, testloader = create_dataset(corruption_percentage=noise_ratio)
 
-            split_size = int(len(trainset) * 0.2)
-            trainset, _ = torch.utils.data.random_split(trainset, [split_size, len(trainset) - split_size])
+            torch.manual_seed(random.randint(0, 999999))
+            # net1 = resnet18(num_classes=10) # make_resnet18k(k=resnet_width, num_classes=10)
+            net1 = make_resnet18k(k=resnet_width, num_classes=10)
+            net1 = net1.to(device)
 
+            torch.manual_seed(random.randint(0, 999999))
+            net2 = resnet18(num_classes=10) # make_resnet18k(k=resnet_width, num_classes=10)
+            net2 = make_resnet18k(k=resnet_width, num_classes=10)
+            net2 = net2.to(device)
 
-            # split_size = int(len(trainset) * 0.5)
-            # train_subset, _ = torch.utils.data.random_split(trainset, [split_size, len(trainset) - split_size])
+            criterion1 = nn.CrossEntropyLoss()
+            optimizer1 = optim.SGD(net1.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4) # optim.SGD(net1.parameters(), lr=0.1, momentum=0.9) 
 
-            trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=4)
-            trainloader_eval = torch.utils.data.DataLoader(trainset, batch_size=100, shuffle=False, num_workers=4)
-            testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=4)
+            criterion2 = nn.CrossEntropyLoss()
+            optimizer2 = optim.SGD(net2.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4) # optim.SGD(net2.parameters(), lr=0.1, momentum=0.9) 
 
-            torch.manual_seed(0)
-            net1 = resnet18(num_classes=10).cuda() # ResNet18(width=resnet_width).cuda()
-
-            torch.manual_seed(1)
-            net2 = resnet18(num_classes=10).cuda() # ResNet18(width=resnet_width).cuda()
-
-            criterion = nn.CrossEntropyLoss()
-            optimizer1 = optim.SGD(net1.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4)
-            scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer1, step_size=50, gamma=0.1)
-
-            optimizer2 = optim.SGD(net2.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4)
-            scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer2, step_size=50, gamma=0.1)
-
-            net1, net2 = ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion, optimizer1, optimizer2, scheduler1, scheduler2, logger)
-
-            # torch.save(net1.state_dict(), 'bin/resnet18_1.pt')
-            # torch.save(net2.state_dict(), 'bin/resnet18_2.pt')
+            ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion1, criterion2, optimizer1, optimizer2, logger, epochs=50)

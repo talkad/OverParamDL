@@ -15,7 +15,7 @@ from torchvision.models import resnet18
 
 
 
-def ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion1, criterion2, optimizer1, optimizer2, logger, epochs=100):
+def ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion1, criterion2, optimizer1, optimizer2, logger, epochs=100, b=0.1):
     for epoch in range(epochs):
         total_loss1, total_loss2, total = 0, 0, 0
         
@@ -28,14 +28,14 @@ def ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion1, crite
 
             optimizer1.zero_grad()
             outputs1 = net1(inputs)
-            loss1 = criterion1(outputs1, labels)
+            loss1 = (criterion1(outputs1, labels) - b).abs() + b 
             loss1.backward()
             optimizer1.step()
             total_loss1 += loss1.item()
 
             optimizer2.zero_grad()
             outputs2 = net2(inputs)
-            loss2 = criterion2(outputs2, labels)
+            loss2 = (criterion2(outputs2, labels) - b).abs() + b 
             loss2.backward()
             optimizer2.step()
             total_loss2 += loss2.item()
@@ -88,17 +88,18 @@ if __name__=='__main__':
     print(f'Device: {device}')
 
     repeats = 5
-    noise_ratios = [0, 0.15, 0.4]# [0, 0.2, 0.5]
+    noise_ratios = [0, 0.15, 0.4]
     resnet_widths = [1] + [num for num in range(2, 23) if num % 2 == 0] + [num for num in range(24, 65) if num % 4 == 0]
 
-    resnet_widths = [8, 16, 32, 64]
+    bs = [0, 0.05, 0.1, 0.2, 0.4, 0.8, 1, 2]
+    resnet_width = 64
 
     for idx in range(repeats):
-        for resnet_width, noise_ratio  in itertools.product(resnet_widths, noise_ratios):
+        for b, noise_ratio  in itertools.product(bs, noise_ratios):
         
             # for noise_ratio  in noise_ratios:
 
-            print(f'Noise Ratio: {noise_ratio}, ResNet Width: {resnet_width}')
+            print(f'Noise Ratio: {noise_ratio}, b: {b}')
 
             logger = logging.getLogger(__name__)
             logger.setLevel(logging.INFO)
@@ -106,7 +107,7 @@ if __name__=='__main__':
             if logger.hasHandlers():
                 logger.handlers.clear()
 
-            file_handler = logging.FileHandler(f'logs9/resnet18_k={resnet_width}_noise={noise_ratio}.log')
+            file_handler = logging.FileHandler(f'logs10/resnet18_b={b}_noise={noise_ratio}.log')
             file_handler.setLevel(logging.INFO)
 
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -116,12 +117,10 @@ if __name__=='__main__':
             trainloader, trainloader_eval, testloader = create_dataset(corruption_percentage=noise_ratio)
 
             torch.manual_seed(random.randint(0, 999999))
-            # net1 = resnet18(num_classes=10) # make_resnet18k(k=resnet_width, num_classes=10)
             net1 = make_resnet18k(k=resnet_width, num_classes=10)
             net1 = net1.to(device)
 
             torch.manual_seed(random.randint(0, 999999))
-            net2 = resnet18(num_classes=10) # make_resnet18k(k=resnet_width, num_classes=10)
             net2 = make_resnet18k(k=resnet_width, num_classes=10)
             net2 = net2.to(device)
 
@@ -131,4 +130,4 @@ if __name__=='__main__':
             criterion2 = nn.CrossEntropyLoss()
             optimizer2 = optim.SGD(net2.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4) # optim.SGD(net2.parameters(), lr=0.1, momentum=0.9) 
 
-            ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion1, criterion2, optimizer1, optimizer2, logger, epochs=50)
+            ddd(trainloader, trainloader_eval, testloader, net1, net2, criterion1, criterion2, optimizer1, optimizer2, logger, epochs=50, b=b)

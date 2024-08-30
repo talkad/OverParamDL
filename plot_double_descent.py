@@ -46,7 +46,6 @@ if __name__=='__main__':
     plt.ylabel('Error')   
     plt.legend()
 
-    plt.savefig(f'dd.png')
-    # plt.savefig(f'dd_epoch={epoch}_train.png')
+    plt.savefig(f'dd_epoch={epoch}_train.png')
 
 

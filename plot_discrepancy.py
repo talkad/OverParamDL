@@ -24,14 +24,13 @@ def log_reader(log_lines, start=0, noise_rate=0, discrepancy=False):
 
 if __name__=='__main__':
 
-    resnet_width = 64
-    noises = [0, 0.15, 0.4]  # [0, 0.2, 0.5]
-    resnet_vers = [18] #[18, 34, 50, 101, 152]
+    noises = [0, 0.15, 0.4]
+    bs =  [0.05, 0.1, 0.2, 0.4, 0.8, 1, 2]
     
-    for resnet_ver, noise in itertools.product(resnet_vers, noises):
+    for b, noise in itertools.product(bs, noises):
         plt.clf()
 
-        log_file = f'logs7/resnet{resnet_ver}_k={resnet_width}_noise={noise}.log'
+        log_file = f'logs10/resnet18_b={b}_noise={noise}.log'
 
         with open(log_file, 'r') as f:
             lines = f.readlines()
@@ -67,13 +66,13 @@ if __name__=='__main__':
         plt.legend()
 
         plt.subplot(1, 3, 3)
-        plt.plot(epochs, test_discrepancy_mean, label=f'noise={noise}')  
-        plt.fill_between(epochs, test_discrepancy_mean-test_discrepancy_std, test_discrepancy_mean+test_discrepancy_std, alpha=0.3)
+        plt.plot(epochs, test_discrepancy_mean, label=f'noise={noise}', color='g')  
+        plt.fill_between(epochs, test_discrepancy_mean-test_discrepancy_std, test_discrepancy_mean+test_discrepancy_std, color='g', alpha=0.3)
 
         plt.xlabel('Epochs')
         plt.ylabel('Discrepancy')
         plt.legend()
 
-        plt.savefig(f'ddd_k={resnet_width}_noise={noise}.png')
+        plt.savefig(f'ddd_b={b}_noise={noise}.png')
 
 

@@ -30,7 +30,7 @@ if __name__=='__main__':
     for b, noise in itertools.product(bs, noises):
         plt.clf()
 
-        log_file = f'logs10/resnet18_b={b}_noise={noise}.log'
+        log_file = f'logs/resnet18_b={b}_noise={noise}.log'
 
         with open(log_file, 'r') as f:
             lines = f.readlines()

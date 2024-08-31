@@ -91,7 +91,7 @@ if __name__=='__main__':
     noise_ratios = [0, 0.15, 0.4]
     resnet_widths = [1] + [num for num in range(2, 23) if num % 2 == 0] + [num for num in range(24, 65) if num % 4 == 0]
 
-    bs = [0, 0.05, 0.1, 0.2, 0.4, 0.8, 1, 2]
+    bs = [0.05, 0.1, 0.2, 0.4, 0.8, 1, 2]
     resnet_width = 64
 
     for idx in range(repeats):
@@ -107,7 +107,7 @@ if __name__=='__main__':
             if logger.hasHandlers():
                 logger.handlers.clear()
 
-            file_handler = logging.FileHandler(f'logs10/resnet18_b={b}_noise={noise_ratio}.log')
+            file_handler = logging.FileHandler(f'logs/resnet18_b={b}_noise={noise_ratio}.log')
             file_handler.setLevel(logging.INFO)
 
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
